@@ -82,209 +82,305 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  bool isLoading = false;
+  bool _obscureText = true;
 
-  Future<void> loginUser() async {
+  // Logic for Login
+  Future<void> login() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => isLoading = true);
     try {
-      UserCredential userCredential = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(
-            email: emailController.text.trim(),
-            password: passwordController.text.trim(),
-          );
+      // 1. Sign in with Firebase Auth
+      UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
 
       String uid = userCredential.user!.uid;
 
-      // 🔎 Check USERS collection
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
-
-      if (userDoc.exists) {
-        String role = userDoc['role'];
-
-        if (role == "user") {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => UserHome()),
-          );
-          return;
-        }
-      }
-      if (userDoc.exists) {
-        String role = userDoc['role'];
-
-        if (role == "admin") {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => AdminHome()),
-          );
-          return;
-        }
-      }
-
-      // 🔎 Check DRIVERS collection
-      DocumentSnapshot driverDoc = await FirebaseFirestore.instance
-          .collection('drivers')
-          .doc(uid)
-          .get();
-
+      // 2. Check if they are a Driver
+      DocumentSnapshot driverDoc = await FirebaseFirestore.instance.collection('drivers').doc(uid).get();
+      
       if (driverDoc.exists) {
-        String role = driverDoc['role'];
-
-        if (role == "driver") {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => DriverHome()),
-          );
-          return;
+        if (mounted) {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DriverHome()));
         }
+        return; // Stop here if driver found
       }
 
-      // 🔎 Check ADMINS collection
-      DocumentSnapshot adminDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
+      // 3. Check if they are a User (or Admin)
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Role not found")));
+      if (userDoc.exists) {
+        String role = userDoc['role'] ?? 'user';
+
+        if (mounted) {
+          if (role == 'admin') {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AdminHome()));
+          } else {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const UserHome()));
+          }
+        }
+      } else {
+        // If UID exists in Auth but not in any collection (rare case)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Account data not found.")));
+      }
+
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Login failed: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
+    setState(() => isLoading = false);
+  }
+  // Logic for the "Sign Up" choice popup
+  void _showSignUpOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+        height: 220,
+        child: Column(
+          children: [
+            const Text(
+              "Create an account as",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2D3250),
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Colors.indigoAccent,
+                child: Icon(Icons.person, color: Colors.white),
+              ),
+              title: const Text("User / Rider"),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SignupPage()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFF2D3250),
+                child: Icon(Icons.drive_eta, color: Colors.white),
+              ),
+              title: const Text("Driver / Captain"),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const DriverSignupPage(),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: ListView(
-          children: [
-            const SizedBox(height: 60),
-            const Text(
-              "CabRide",
-              style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 40),
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(
-                labelText: "Email",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: "Password",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(onPressed: loginUser, child: const Text("Login")),
-            TextButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ForgotPassword()),
-              ),
-              child: const Text("Forgot Password?"),
-            ),
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+      backgroundColor: const Color(0xFFF8F9FD),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 30),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Regal Logo Icon
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.directions_car_rounded,
+                      size: 50,
+                      color: Colors.indigoAccent,
+                    ),
                   ),
-                ),
-                child: const Text(
-                  "Sign Up",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                  const SizedBox(height: 25),
+                  const Text(
+                    "CabRide Login",
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2D3250),
+                    ),
                   ),
-                ),
-                onPressed: () {
-                  showModalBottomSheet(
-                    context: context,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(20),
+                  const Text(
+                    "Enter details to access your account",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 40),
+
+                  // Email
+                  buildInputField(
+                    controller: emailController,
+                    label: "Email Address",
+                    icon: Icons.email_outlined,
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Password
+                  buildInputField(
+                    controller: passwordController,
+                    label: "Password",
+                    icon: Icons.lock_outline,
+                    isPassword: true,
+                  ),
+
+                  // Forgot Password - Connected to your ForgotPassword class
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ForgotPassword(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        "Forgot Password?",
+                        style: TextStyle(
+                          color: Colors.indigoAccent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                    builder: (context) {
-                      return Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const SizedBox(height: 10),
+                  ),
+                  const SizedBox(height: 20),
 
-                            const Text(
-                              "Choose Account Type",
+                  // Login Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton(
+                      onPressed: isLoading ? null : login,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2D3250),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        elevation: 2,
+                      ),
+                      child: isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              "Login",
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
+                    ),
+                  ),
 
-                            const SizedBox(height: 20),
+                  const SizedBox(height: 30),
 
-                            ListTile(
-                              leading: const Icon(Icons.person, size: 28),
-                              title: const Text("Sign up as User"),
-                              onTap: () {
-                                Navigator.pop(context);
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => SignupPage(),
-                                  ),
-                                );
-                              },
-                            ),
-
-                            const Divider(),
-
-                            ListTile(
-                              leading: const Icon(
-                                Icons.directions_car,
-                                size: 28,
-                              ),
-                              title: const Text("Sign up as Driver"),
-                              onTap: () {
-                                Navigator.pop(context);
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => DriverSignupPage(),
-                                  ),
-                                );
-                              },
-                            ),
-
-                            const SizedBox(height: 20),
-                          ],
+                  // Sign Up Link - Triggers Selection Logic
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        "New here? ",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      GestureDetector(
+                        onTap: _showSignUpOptions,
+                        child: const Text(
+                          "Create Account",
+                          style: TextStyle(
+                            color: Colors.indigoAccent,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      );
-                    },
-                  );
-                },
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
+    );
+  }
+
+  // Helper Widget for modern input styling
+  Widget buildInputField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool isPassword = false,
+  }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: isPassword ? _obscureText : false,
+      style: const TextStyle(fontSize: 14),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+        prefixIcon: Icon(icon, color: Colors.indigoAccent, size: 20),
+        suffixIcon: isPassword
+            ? IconButton(
+                icon: Icon(
+                  _obscureText ? Icons.visibility_off : Icons.visibility,
+                  size: 20,
+                ),
+                onPressed: () => setState(() => _obscureText = !_obscureText),
+              )
+            : null,
+        filled: true,
+        fillColor: Colors.white,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide(color: Colors.grey.shade200),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Colors.indigoAccent, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(vertical: 18),
+      ),
+      validator: (value) => value == null || value.isEmpty ? "Required" : null,
     );
   }
 }
@@ -363,25 +459,48 @@ class UserHome extends StatefulWidget {
 }
 
 class _UserHomeState extends State<UserHome> {
-
   final pickupController = TextEditingController();
   final dropController = TextEditingController();
+
+  // ✅ Logout Function
+  Future<void> logout() async {
+    await FirebaseAuth.instance.signOut();
+    if (mounted) {
+      // Navigates back to your LoginPage and removes all previous screens
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+        (route) => false,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
+      // ✅ Added AppBar for the Logout button
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          IconButton(
+            onPressed: logout,
+            icon: const Icon(Icons.logout, color: Colors.black),
+            tooltip: "Logout",
+          ),
+          const SizedBox(width: 10),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: ListView(
             children: [
-              const SizedBox(height: 20),
+              // Reduced height slightly since we added an AppBar
+              const SizedBox(height: 10),
 
-              const Text(
-                "Go anywhere with",
-                style: TextStyle(fontSize: 28),
-              ),
+              const Text("Go anywhere with", style: TextStyle(fontSize: 28)),
               const Text(
                 "CabRide",
                 style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold),
@@ -395,11 +514,12 @@ class _UserHomeState extends State<UserHome> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black12, blurRadius: 8),
+                  ],
                 ),
                 child: Column(
                   children: [
-
                     // 📍 PICKUP
                     Row(
                       children: [
@@ -447,13 +567,13 @@ class _UserHomeState extends State<UserHome> {
                           backgroundColor: Colors.black,
                         ),
                         onPressed: () {
-
                           String pickup = pickupController.text.trim();
                           String drop = dropController.text.trim();
-
                           if (pickup.isEmpty || drop.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Enter pickup & drop")),
+                              const SnackBar(
+                                content: Text("Enter pickup & drop"),
+                              ),
                             );
                             return;
                           }
@@ -461,14 +581,15 @@ class _UserHomeState extends State<UserHome> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => RideVehiclePage(
-                                pickup: pickup,
-                                drop: drop,
-                              ),
+                              builder: (_) =>
+                                  RideVehiclePage(pickup: pickup, drop: drop),
                             ),
                           );
                         },
-                        child: const Text("See Prices"),
+                        child: const Text(
+                          "See Prices",
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
                     ),
                   ],
@@ -491,9 +612,7 @@ class _UserHomeState extends State<UserHome> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => EmergencyPage(),
-                          ),
+                          MaterialPageRoute(builder: (_) => EmergencyPage()),
                         );
                       },
                       child: Container(
@@ -560,16 +679,42 @@ class _UserHomeState extends State<UserHome> {
 class DriverHome extends StatelessWidget {
   const DriverHome({super.key});
 
+  // ✅ Logout Function
+  Future<void> logout(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+    if (context.mounted) {
+      // Navigates back to LoginPage and clears the stack
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+        (route) => false,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
+      // ✅ Added AppBar for Logout
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          IconButton(
+            onPressed: () => logout(context),
+            icon: const Icon(Icons.logout, color: Colors.black),
+            tooltip: "Logout",
+          ),
+          const SizedBox(width: 10),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: ListView(
             children: [
-              const SizedBox(height: 20),
+              const SizedBox(height: 10), // Reduced slightly for AppBar
 
               const Text(
                 "Driver Dashboard",
@@ -615,22 +760,22 @@ class DriverHome extends StatelessWidget {
                   Expanded(child: _driverStatCard("Rides", "8", Colors.blue)),
                   const SizedBox(width: 15),
                   Expanded(
-  child: GestureDetector(
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const DriverPaymentsPage(),
-        ),
-      );
-    },
-    child: _driverStatCard(
-      "Earnings",
-      "₹1450",
-      Colors.orange,
-    ),
-  ),
-),
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const DriverPaymentsPage(),
+                          ),
+                        );
+                      },
+                      child: _driverStatCard(
+                        "Earnings",
+                        "₹1450",
+                        Colors.orange,
+                      ),
+                    ),
+                  ),
                 ],
               ),
 
@@ -653,12 +798,12 @@ class DriverHome extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                          builder: (_) => const DriverRequestsPage(),
-                      ),
-                    );
-                   },
+                            builder: (_) => const DriverRequestsPage(),
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                 ),
                   const SizedBox(width: 15),
                   Expanded(
                     child: _actionCard(
@@ -739,10 +884,23 @@ class DriverHome extends StatelessWidget {
 class AdminHome extends StatelessWidget {
   const AdminHome({super.key});
 
+  // ✅ Logout Function
+  Future<void> logout(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+    if (context.mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+        (route) => false,
+      );
+    }
+  }
+
   Stream<int> countStream(String collection) {
-    return FirebaseFirestore.instance.collection(collection).snapshots().map(
-          (snap) => snap.docs.length,
-        );
+    return FirebaseFirestore.instance
+        .collection(collection)
+        .snapshots()
+        .map((snap) => snap.docs.length);
   }
 
   Stream<double> revenueStream() {
@@ -751,16 +909,16 @@ class AdminHome extends StatelessWidget {
         .where('status', isEqualTo: 'completed')
         .snapshots()
         .map((snap) {
-      double total = 0;
-      for (var d in snap.docs) {
-        final data = d.data();
-        final fare = data['fare'];
+          double total = 0;
+          for (var d in snap.docs) {
+            final data = d.data();
+            final fare = data['fare'];
 
-        if (fare is num) total += fare.toDouble();
-        if (fare is String) total += double.tryParse(fare) ?? 0;
-      }
-      return total;
-    });
+            if (fare is num) total += fare.toDouble();
+            if (fare is String) total += double.tryParse(fare) ?? 0;
+          }
+          return total;
+        });
   }
 
   Stream<int> activeRidesStream() {
@@ -775,12 +933,24 @@ class AdminHome extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          IconButton(
+            onPressed: () => logout(context),
+            icon: const Icon(Icons.logout, color: Colors.black),
+            tooltip: "Logout",
+          ),
+          const SizedBox(width: 10),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: ListView(
             children: [
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
               const Text(
                 "Admin Control Center",
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
@@ -817,13 +987,10 @@ class AdminHome extends StatelessWidget {
                                           "Drivers",
                                           "${driverSnap.data?.docs.length ?? 0}",
                                           Colors.green,
-                                        ),
-                                      ),
+                                        ),),
                                     ],
                                   ),
-
                                   const SizedBox(height: 12),
-
                                   Row(
                                     children: [
                                       Expanded(
@@ -855,12 +1022,10 @@ class AdminHome extends StatelessWidget {
               ),
 
               const SizedBox(height: 30),
-
               const Text(
                 "Management",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-
               const SizedBox(height: 15),
 
               _managementTile(context, "Manage Users"),
@@ -868,6 +1033,62 @@ class AdminHome extends StatelessWidget {
               _managementTile(context, "Rides Dashboard"),
               _managementTile(context, "Feedback"),
               _managementTile(context, "Payment Logs"),
+              
+              // ✅ Added Emergency as a management tile
+              _managementTile(context, "Emergency"),
+
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 10),
+
+              // ✅ Bottom Emergency Shortcut for Admins
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const EmergencyPage()));
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.red[50],
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.emergency_share, color: Colors.red),
+                          SizedBox(width: 12),
+                          Text("Emergency Requests", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      Icon(Icons.arrow_forward_ios, size: 14, color: Colors.red),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Logout Tile
+              GestureDetector(
+                onTap: () => logout(context),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Logout", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
+                      Icon(Icons.exit_to_app, size: 18, color: Colors.black54),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 30),
             ],
           ),
         ),
@@ -906,15 +1127,19 @@ class AdminHome extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (title == "Manage Users") {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => ManageUsersPage()));
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageUsersPage()));
         } else if (title == "Manage Drivers") {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => ManageDriversPage()));
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageDriversPage()));
         } else if (title == "Rides Dashboard") {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => AdminRidesDashboard()));
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminRidesDashboard()));
         } else if (title == "Feedback") {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => AdminFeedbackPage()));
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminFeedbackPage()));
         } else if (title == "Payment Logs") {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => PaymentLogsPage()));
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const PaymentLogsPage()));
+        } 
+        // ✅ Navigation for the Emergency Tile
+        else if (title == "Emergency") {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const EmergencyPage()));
         }
       },
       child: Container(

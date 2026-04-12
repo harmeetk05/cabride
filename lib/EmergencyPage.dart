@@ -33,15 +33,15 @@ class _EmergencyPageState extends State<EmergencyPage> {
       return;
     }
 
-    final userDoc =
-        await _firestore.collection('users').doc(user.uid).get();
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
 
     if (userDoc.exists) {
       role = userDoc.data()?['role'];
     } else {
-      final driverDoc =
-          await _firestore.collection('drivers').doc(user.uid).get();
-
+      final driverDoc = await _firestore
+          .collection('drivers')
+          .doc(user.uid)
+          .get();
       if (driverDoc.exists) {
         role = driverDoc.data()?['role'];
       } else {
@@ -50,7 +50,6 @@ class _EmergencyPageState extends State<EmergencyPage> {
     }
 
     if (!mounted) return;
-
     setState(() {
       loading = false;
     });
@@ -68,38 +67,40 @@ class _EmergencyPageState extends State<EmergencyPage> {
       'timestamp': FieldValue.serverTimestamp(),
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("$type alert sent! 🚨")),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text("$type alert sent! 🚨")));
   }
 
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text("Emergency"),
         backgroundColor: Colors.red,
+        centerTitle: true,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: role == 'user'
             ? userEmergencyUI()
             : role == 'driver'
-                ? driverEmergencyUI()
-                : adminEmergencyUI(),
+            ? driverEmergencyUI()
+            : adminEmergencyUI(),
       ),
     );
   }
 
-  // USER UI
+  // USER UI - Updated to Grid Layout
   Widget userEmergencyUI() {
-    return Column(
+    return GridView.count(
+      crossAxisCount: 2, // 2 columns
+      crossAxisSpacing: 15,
+      mainAxisSpacing: 15,
       children: [
         emergencyButton("Safety", Icons.warning, Colors.red),
         emergencyButton("Medical", Icons.medical_services, Colors.blue),
@@ -110,89 +111,111 @@ class _EmergencyPageState extends State<EmergencyPage> {
   }
 
   Widget emergencyButton(String label, IconData icon, Color color) {
-    return Column(
-      children: [
-        Icon(icon, size: 50, color: color),
-        Text(label,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        ElevatedButton(
-          onPressed: () => sendAlert(label),
-          child: const Text("Send Alert"),
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: InkWell(
+        onTap: () => sendAlert(label),
+        borderRadius: BorderRadius.circular(15),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 45, color: color),
+            const SizedBox(height: 10),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              "Send Alert",
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
         ),
-        const SizedBox(height: 20),
-      ],
+      ),
     );
   }
 
-  // DRIVER UI
+  // DRIVER UI - Properly Centered
   Widget driverEmergencyUI() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Icon(Icons.warning, size: 80, color: Colors.red),
-        const SizedBox(height: 20),
-        const Text(
-          "Emergency Control Panel",
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 30),
-
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-          onPressed: () => sendAlert("Driver Emergency"),
-          child: const Text("Trigger Emergency Alert"),
-        ),
-
-        const SizedBox(height: 20),
-
-        ElevatedButton(
-          onPressed: () {},
-          child: const Text("Call Emergency Services"),
-        ),
-      ],
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Icon(Icons.warning, size: 80, color: Colors.red),
+          const SizedBox(height: 20),
+          const Text(
+            "Emergency Control Panel",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 30),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () => sendAlert("Driver Emergency"),
+              child: const Text("Trigger Emergency Alert"),
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton(
+              onPressed: () {}, // Add calling logic here if needed
+              child: const Text("Call Emergency Services"),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   // ADMIN UI
   Widget adminEmergencyUI() {
-    return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              const Icon(Icons.admin_panel_settings,
-                  size: 80, color: Colors.blue),
-              const SizedBox(height: 20),
-
-              const Text(
-                "Emergency Administration",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-
-              const SizedBox(height: 30),
-
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const EmergencyRequestsPage(),
-                    ),
-                  );
-                },
-                child: const Text("Manage Emergency Requests"),
-              ),
-
-              const SizedBox(height: 20),
-
-              OutlinedButton(
-                onPressed: () {
-                  setState(() {});
-                },
-                child: const Text("Refresh Dashboard"),
-              ),
-            ],
-          ),
+    return Center(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.admin_panel_settings,
+              size: 80,
+              color: Colors.blue,
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              "Emergency Administration",
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const EmergencyRequestsPage(),
+                  ),
+                );
+              },
+              child: const Text("Manage Emergency Requests"),
+            ),
+            const SizedBox(height: 20),
+            OutlinedButton(
+              onPressed: () => setState(() {}),
+              child: const Text("Refresh Dashboard"),
+            ),
+          ],
         ),
       ),
     );
@@ -220,7 +243,6 @@ class EmergencyRequestsPage extends StatelessWidget {
           }
 
           final emergencies = snapshot.data!.docs;
-
           if (emergencies.isEmpty) {
             return const Center(child: Text("No emergencies yet."));
           }
@@ -235,17 +257,16 @@ class EmergencyRequestsPage extends StatelessWidget {
                 leading: const Icon(Icons.warning, color: Colors.red),
                 title: Text("User ID: ${data['userId'] ?? ''}"),
                 subtitle: Text(
-                    "Role: ${data['role'] ?? ''} | Status: ${data['status'] ?? ''}"),
+                  "Role: ${data['role'] ?? ''} | Status: ${data['status'] ?? ''}",
+                ),
                 trailing: data['status'] == 'pending'
                     ? ElevatedButton(
                         onPressed: () async {
-                          await doc.reference
-                              .update({'status': 'handled'});
+                          await doc.reference.update({'status': 'handled'});
                         },
                         child: const Text("Handled"),
                       )
-                    : const Text("Done",
-                        style: TextStyle(color: Colors.green)),
+                    : const Text("Done", style: TextStyle(color: Colors.green)),
               );
             },
           );
