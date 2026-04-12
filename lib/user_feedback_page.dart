@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'main.dart';
 
 class UserFeedbackPage extends StatefulWidget {
-
   final String rideId;
   final String driverId;
 
@@ -23,22 +23,30 @@ class _UserFeedbackPageState extends State<UserFeedbackPage> {
   final commentController = TextEditingController();
 
   Future<void> submitFeedback() async {
+  String userId = FirebaseAuth.instance.currentUser!.uid;
 
-    String userId = FirebaseAuth.instance.currentUser!.uid;
+  await FirebaseFirestore.instance.collection('feedback').add({
+    "rideId": widget.rideId,
+    "fromId": userId,
+    "toId": widget.driverId,
+    "fromRole": "user", 
+    "rating": rating,
+    "comment": commentController.text,
+    "createdAt": Timestamp.now(),
+  });
 
-    await FirebaseFirestore.instance.collection('feedback').add({
-      "rideId": widget.rideId,
-      "fromId": userId,
-      "fromRole": "user",
-      "toId": widget.driverId,
-      "rating": rating,
-      "comment": commentController.text,
-      "createdAt": Timestamp.now(),
-    });
+  if (!context.mounted) return;
 
-    if (!context.mounted) return;
-    Navigator.pop(context);
-  }
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text("Feedback submitted")),
+  );
+
+  Navigator.pushAndRemoveUntil(
+    context,
+    MaterialPageRoute(builder: (_) => const UserHome()),
+    (route) => false,
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +59,13 @@ class _UserFeedbackPageState extends State<UserFeedbackPage> {
         child: Column(
           children: [
 
-            const Text("Rating"),
+            const Text(
+              "How was your ride?",
+              style: TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+
+            const SizedBox(height: 20),
 
             Slider(
               value: rating,
@@ -62,16 +76,25 @@ class _UserFeedbackPageState extends State<UserFeedbackPage> {
               onChanged: (v) => setState(() => rating = v),
             ),
 
+            const SizedBox(height: 10),
+
             TextField(
               controller: commentController,
-              decoration: const InputDecoration(labelText: "Comment"),
+              decoration: const InputDecoration(
+                labelText: "Write a comment (optional)",
+                border: OutlineInputBorder(),
+              ),
             ),
 
             const SizedBox(height: 20),
 
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                minimumSize: const Size(double.infinity, 50),
+              ),
               onPressed: submitFeedback,
-              child: const Text("Submit"),
+              child: const Text("Submit Feedback"),
             )
           ],
         ),

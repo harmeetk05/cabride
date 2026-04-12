@@ -12,7 +12,6 @@ class RideSearchingPage extends StatefulWidget {
 }
 
 class _RideSearchingPageState extends State<RideSearchingPage> {
-
   String message = "Searching for driver...";
 
   @override
@@ -22,24 +21,39 @@ class _RideSearchingPageState extends State<RideSearchingPage> {
   }
 
   Future<void> assignDriver() async {
+    await Future.delayed(const Duration(seconds: 2));
 
-    await Future.delayed(const Duration(seconds: 3));
-
-    var drivers = await FirebaseFirestore.instance
-        .collection('drivers')
-        .where('available', isEqualTo: true)
-        .limit(1)
+    // GET RIDE DATA (IMPORTANT FOR FEMALE FILTER)
+    var rideDoc = await FirebaseFirestore.instance
+        .collection('rides')
+        .doc(widget.rideId)
         .get();
+
+    bool femaleOnly = rideDoc['femaleOnly'] ?? false;
+
+    Query query = FirebaseFirestore.instance
+        .collection('drivers')
+        .where('active', isEqualTo: true);
+
+    if (femaleOnly) {
+      query = query.where('gender', isEqualTo: 'female');
+    }
+
+    var drivers = await query.limit(1).get();
 
     if (drivers.docs.isEmpty) {
       setState(() {
-        message = "No driver yet. Please wait...";
+        message = femaleOnly
+            ? "No female driver available. Please wait..."
+            : "No driver available. Please wait...";
       });
+
       return;
     }
 
     var driver = drivers.docs.first;
 
+    // UPDATE RIDE WITH DRIVER
     await FirebaseFirestore.instance
         .collection('rides')
         .doc(widget.rideId)
@@ -48,8 +62,10 @@ class _RideSearchingPageState extends State<RideSearchingPage> {
       "status": "assigned",
     });
 
-    await driver.reference.update({"available": false});
+    // MAKE DRIVER UNAVAILABLE
+    await driver.reference.update({"active": false});
 
+    // GO TO TRACKING PAGE
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -62,32 +78,32 @@ class _RideSearchingPageState extends State<RideSearchingPage> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(title: const Text("Finding Driver")),
 
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 20),
+            Text(message),
 
-          const CircularProgressIndicator(),
-          const SizedBox(height: 20),
-          Text(message),
+            const SizedBox(height: 30),
 
-          const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: () async {
+                await FirebaseFirestore.instance
+                    .collection('rides')
+                    .doc(widget.rideId)
+                    .update({"status": "cancelled"});
 
-          ElevatedButton(
-            onPressed: () async {
-              await FirebaseFirestore.instance
-                  .collection('rides')
-                  .doc(widget.rideId)
-                  .update({"status": "cancelled"});
-
-              Navigator.pop(context);
-            },
-            child: const Text("Cancel"),
-          )
-        ],
+                Navigator.pop(context);
+              },
+              child: const Text("Cancel"),
+            )
+          ],
+        ),
       ),
     );
   }

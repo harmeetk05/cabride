@@ -10,7 +10,12 @@ class DriverPaymentsPage extends StatelessWidget {
     String driverId = FirebaseAuth.instance.currentUser!.uid;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Driver Payments")),
+      backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        title: const Text("Earnings"),
+        backgroundColor: Colors.black,
+      ),
+
       body: StreamBuilder(
         stream: FirebaseFirestore.instance
             .collection('rides')
@@ -23,15 +28,39 @@ class DriverPaymentsPage extends StatelessWidget {
 
           var rides = snapshot.data!.docs;
 
+          if (rides.isEmpty) {
+            return const Center(
+              child: Text("No completed rides yet"),
+            );
+          }
+
           return ListView.builder(
+            padding: const EdgeInsets.all(12),
             itemCount: rides.length,
             itemBuilder: (context, index) {
               var ride = rides[index];
 
-              return Card(
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 8,
+                    )
+                  ],
+                ),
                 child: ListTile(
-                  title: Text("₹${ride['fare']}"),
-                  subtitle: Text("Payment: ${ride['paymentStatus']}"),
+                  leading: const Icon(Icons.payments, color: Colors.green),
+                  title: Text(
+                    "₹${ride['fare'] ?? '0'}",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    "Payment: ${ride['paymentStatus'] ?? 'unknown'}",
+                  ),
                 ),
               );
             },

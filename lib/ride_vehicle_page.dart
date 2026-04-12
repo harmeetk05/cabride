@@ -19,6 +19,7 @@ class RideVehiclePage extends StatefulWidget {
 
 class _RideVehiclePageState extends State<RideVehiclePage> {
   String selectedVehicle = "Standard";
+  bool femaleOnly = false; 
 
   int calculateFare(String type) {
     if (type == "Comfort") return 150;
@@ -34,18 +35,32 @@ class _RideVehiclePageState extends State<RideVehiclePage> {
       body: Column(
         children: [
 
-          // 🚗 VEHICLE LIST
           Expanded(
             child: ListView(
               children: [
+
                 vehicleTile("Standard", "Affordable ride", Icons.directions_car),
                 vehicleTile("Comfort", "Low height, easy entry", Icons.airline_seat_recline_normal),
                 vehicleTile("Assist", "Driver helps elderly", Icons.accessible),
+
+                const SizedBox(height: 10),
+
+                // ✅ FEMALE DRIVER CHECKBOX
+                CheckboxListTile(
+                  value: femaleOnly,
+                  onChanged: (value) {
+                    setState(() {
+                      femaleOnly = value!;
+                    });
+                  },
+                  title: const Text("Assign female driver only"),
+                  subtitle: const Text("For safety & comfort"),
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
               ],
             ),
           ),
 
-          // ✅ CONFIRM BUTTON
           Padding(
             padding: const EdgeInsets.all(16),
             child: ElevatedButton(
@@ -58,7 +73,7 @@ class _RideVehiclePageState extends State<RideVehiclePage> {
                 String userId = FirebaseAuth.instance.currentUser!.uid;
                 int fare = calculateFare(selectedVehicle);
 
-                // 🔥 1️⃣ CREATE RIDE
+                // 🔥 CREATE RIDE (WITH FEMALE FILTER FLAG)
                 DocumentReference rideRef =
                     await FirebaseFirestore.instance.collection('rides').add({
                   "userId": userId,
@@ -68,11 +83,12 @@ class _RideVehiclePageState extends State<RideVehiclePage> {
                   "fare": fare,
                   "status": "searching",
                   "driverId": null,
-                  "paymentStatus": "unpaid", // ✅ IMPORTANT
+                  "paymentStatus": "unpaid",
+                  "femaleOnly": femaleOnly, // ✅ IMPORTANT
                   "createdAt": Timestamp.now(),
                 });
 
-                // 🔥 2️⃣ CREATE PAYMENT (THIS WAS MISSING)
+                // 🔥 CREATE PAYMENT
                 await FirebaseFirestore.instance.collection('payments').add({
                   "rideId": rideRef.id,
                   "userId": userId,
@@ -82,7 +98,6 @@ class _RideVehiclePageState extends State<RideVehiclePage> {
                   "createdAt": Timestamp.now(),
                 });
 
-                // 🚀 GO TO SEARCHING PAGE
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -100,7 +115,6 @@ class _RideVehiclePageState extends State<RideVehiclePage> {
     );
   }
 
-  // 🚘 VEHICLE TILE UI
   Widget vehicleTile(String name, String desc, IconData icon) {
     bool isSelected = selectedVehicle == name;
 

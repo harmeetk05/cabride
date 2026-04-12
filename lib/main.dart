@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:cabride/admin_payment_page.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'signup_page.dart';
@@ -13,6 +14,12 @@ import 'package:cabride/manage_users_page.dart';
 import 'package:cabride/manage_drivers_page.dart';
 import 'package:cabride/view_reports_page.dart';
 import 'user_payment_page.dart';
+import 'ride_vehicle_page.dart';
+import 'driver_requests_page.dart';
+import 'driver_payment_page.dart';
+import 'admin_feedback_page.dart';
+import 'admin_rides_dashboard.dart';
+import 'admin_payment_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -348,8 +355,17 @@ class _ForgotPasswordState extends State<ForgotPassword> {
   }
 }
 
-class UserHome extends StatelessWidget {
+class UserHome extends StatefulWidget {
   const UserHome({super.key});
+
+  @override
+  State<UserHome> createState() => _UserHomeState();
+}
+
+class _UserHomeState extends State<UserHome> {
+
+  final pickupController = TextEditingController();
+  final dropController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -362,10 +378,9 @@ class UserHome extends StatelessWidget {
             children: [
               const SizedBox(height: 20),
 
-              // Greeting Section
               const Text(
                 "Go anywhere with",
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w400),
+                style: TextStyle(fontSize: 28),
               ),
               const Text(
                 "CabRide",
@@ -374,24 +389,26 @@ class UserHome extends StatelessWidget {
 
               const SizedBox(height: 30),
 
-              // Ride Booking Card
+              // 🚗 RIDE CARD
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
+                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
                 ),
                 child: Column(
                   children: [
-                    // Pickup
+
+                    // 📍 PICKUP
                     Row(
-                      children: const [
-                        Icon(Icons.radio_button_checked, size: 18),
-                        SizedBox(width: 10),
+                      children: [
+                        const Icon(Icons.radio_button_checked, size: 18),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: TextField(
-                            decoration: InputDecoration(
+                            controller: pickupController,
+                            decoration: const InputDecoration(
                               hintText: "Pickup location",
                               border: InputBorder.none,
                             ),
@@ -402,14 +419,15 @@ class UserHome extends StatelessWidget {
 
                     const Divider(),
 
-                    // Drop
+                    // 📍 DROP
                     Row(
-                      children: const [
-                        Icon(Icons.location_on_outlined, size: 18),
-                        SizedBox(width: 10),
+                      children: [
+                        const Icon(Icons.location_on_outlined, size: 18),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: TextField(
-                            decoration: InputDecoration(
+                            controller: dropController,
+                            decoration: const InputDecoration(
                               hintText: "Drop location",
                               border: InputBorder.none,
                             ),
@@ -420,6 +438,7 @@ class UserHome extends StatelessWidget {
 
                     const SizedBox(height: 20),
 
+                    // 🚀 BUTTON FIXED HERE
                     SizedBox(
                       width: double.infinity,
                       height: 45,
@@ -427,7 +446,28 @@ class UserHome extends StatelessWidget {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.black,
                         ),
-                        onPressed: () {},
+                        onPressed: () {
+
+                          String pickup = pickupController.text.trim();
+                          String drop = dropController.text.trim();
+
+                          if (pickup.isEmpty || drop.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Enter pickup & drop")),
+                            );
+                            return;
+                          }
+
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RideVehiclePage(
+                                pickup: pickup,
+                                drop: drop,
+                              ),
+                            ),
+                          );
+                        },
                         child: const Text("See Prices"),
                       ),
                     ),
@@ -437,7 +477,6 @@ class UserHome extends StatelessWidget {
 
               const SizedBox(height: 40),
 
-              // Quick Actions
               const Text(
                 "Quick Actions",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -453,7 +492,7 @@ class UserHome extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => EmergencyPage(),
+                            builder: (_) => EmergencyPage(),
                           ),
                         );
                       },
@@ -467,7 +506,6 @@ class UserHome extends StatelessWidget {
                           child: Text(
                             "Emergency",
                             style: TextStyle(
-                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Colors.red,
                             ),
@@ -482,7 +520,12 @@ class UserHome extends StatelessWidget {
                   Expanded(
                     child: GestureDetector(
                       onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder:(_)=>const UserPaymentPage(),),);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const UserPaymentPage(),
+                          ),
+                        );
                       },
                       child: Container(
                         height: 100,
@@ -494,7 +537,6 @@ class UserHome extends StatelessWidget {
                           child: Text(
                             "Payments",
                             style: TextStyle(
-                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Colors.blue,
                             ),
@@ -573,8 +615,22 @@ class DriverHome extends StatelessWidget {
                   Expanded(child: _driverStatCard("Rides", "8", Colors.blue)),
                   const SizedBox(width: 15),
                   Expanded(
-                    child: _driverStatCard("Earnings", "₹1450", Colors.orange),
-                  ),
+  child: GestureDetector(
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const DriverPaymentsPage(),
+        ),
+      );
+    },
+    child: _driverStatCard(
+      "Earnings",
+      "₹1450",
+      Colors.orange,
+    ),
+  ),
+),
                 ],
               ),
 
@@ -593,9 +649,16 @@ class DriverHome extends StatelessWidget {
                     child: _actionCard(
                       title: "New Requests",
                       color: Colors.black,
-                      onTap: () {},
-                    ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                          builder: (_) => const DriverRequestsPage(),
+                      ),
+                    );
+                   },
                   ),
+                 ),
                   const SizedBox(width: 15),
                   Expanded(
                     child: _actionCard(
@@ -676,6 +739,38 @@ class DriverHome extends StatelessWidget {
 class AdminHome extends StatelessWidget {
   const AdminHome({super.key});
 
+  Stream<int> countStream(String collection) {
+    return FirebaseFirestore.instance.collection(collection).snapshots().map(
+          (snap) => snap.docs.length,
+        );
+  }
+
+  Stream<double> revenueStream() {
+    return FirebaseFirestore.instance
+        .collection('rides')
+        .where('status', isEqualTo: 'completed')
+        .snapshots()
+        .map((snap) {
+      double total = 0;
+      for (var d in snap.docs) {
+        final data = d.data();
+        final fare = data['fare'];
+
+        if (fare is num) total += fare.toDouble();
+        if (fare is String) total += double.tryParse(fare) ?? 0;
+      }
+      return total;
+    });
+  }
+
+  Stream<int> activeRidesStream() {
+    return FirebaseFirestore.instance
+        .collection('rides')
+        .where('status', whereIn: ['searching', 'assigned', 'ongoing'])
+        .snapshots()
+        .map((snap) => snap.docs.length);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -686,64 +781,80 @@ class AdminHome extends StatelessWidget {
           child: ListView(
             children: [
               const SizedBox(height: 20),
-
               const Text(
-                "Admin Dashboard",
-                style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+                "Admin Control Center",
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
+
+              const SizedBox(height: 25),
+
+              StreamBuilder(
+                stream: FirebaseFirestore.instance.collection('users').snapshots(),
+                builder: (context, userSnap) {
+                  return StreamBuilder(
+                    stream: FirebaseFirestore.instance.collection('drivers').snapshots(),
+                    builder: (context, driverSnap) {
+                      return StreamBuilder(
+                        stream: activeRidesStream(),
+                        builder: (context, rideSnap) {
+                          return StreamBuilder(
+                            stream: revenueStream(),
+                            builder: (context, revenueSnap) {
+                              return Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _adminStatCard(
+                                          "Users",
+                                          "${userSnap.data?.docs.length ?? 0}",
+                                          Colors.blue,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: _adminStatCard(
+                                          "Drivers",
+                                          "${driverSnap.data?.docs.length ?? 0}",
+                                          Colors.green,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+
+                                  const SizedBox(height: 12),
+
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _adminStatCard(
+                                          "Active Rides",
+                                          "${rideSnap.data ?? 0}",
+                                          Colors.orange,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: _adminStatCard(
+                                          "Revenue",
+                                          "₹${(revenueSnap.data ?? 0).toStringAsFixed(0)}",
+                                          Colors.purple,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
               ),
 
               const SizedBox(height: 30),
-
-              const Text(
-                "Platform Overview",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-
-              const SizedBox(height: 15),
-
-              Row(
-                children: [
-                  Expanded(child: _adminStatCard("Users", "124", Colors.blue)),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: _adminStatCard("Drivers", "32", Colors.green),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 15),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: _adminStatCard("Active Rides", "18", Colors.orange),
-                  ),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: _adminStatCard("Revenue", "₹24,000", Colors.purple),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: _actionCard(
-                      title: 'Emergency',
-                      color: Colors.red,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => EmergencyPage()),
-                        );
-                      },
-                    ),
-                  ),
-                  // other action cards for admin
-                ],
-              ),
-
-              const SizedBox(height: 40),
 
               const Text(
                 "Management",
@@ -752,14 +863,11 @@ class AdminHome extends StatelessWidget {
 
               const SizedBox(height: 15),
 
-              Column(
-                children: [
-                  _managementTile(context, "Manage Users"),
-                  _managementTile(context, "Manage Drivers"),
-                  _managementTile(context, "View Reports"),
-                  _managementTile(context, "Payment Logs"),
-                ],
-              ),
+              _managementTile(context, "Manage Users"),
+              _managementTile(context, "Manage Drivers"),
+              _managementTile(context, "Rides Dashboard"),
+              _managementTile(context, "Feedback"),
+              _managementTile(context, "Payment Logs"),
             ],
           ),
         ),
@@ -769,9 +877,9 @@ class AdminHome extends StatelessWidget {
 
   Widget _adminStatCard(String title, String value, Color color) {
     return Container(
-      height: 100,
+      height: 110,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Center(
@@ -786,7 +894,7 @@ class AdminHome extends StatelessWidget {
                 color: color,
               ),
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 6),
             Text(title),
           ],
         ),
@@ -798,68 +906,30 @@ class AdminHome extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (title == "Manage Users") {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => ManageUsersPage()),
-          );
+          Navigator.push(context, MaterialPageRoute(builder: (_) => ManageUsersPage()));
         } else if (title == "Manage Drivers") {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => ManageDriversPage()),
-          );
-        } else if (title == "View Reports") {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => ViewReportsPage()),
-          );
+          Navigator.push(context, MaterialPageRoute(builder: (_) => ManageDriversPage()));
+        } else if (title == "Rides Dashboard") {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => AdminRidesDashboard()));
+        } else if (title == "Feedback") {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => AdminFeedbackPage()));
         } else if (title == "Payment Logs") {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => PaymentLogsPage()),
-          );
-        } 
+          Navigator.push(context, MaterialPageRoute(builder: (_) => PaymentLogsPage()));
+        }
       },
-
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(title),
-            const Icon(Icons.arrow_forward_ios, size: 16),
+            const Icon(Icons.arrow_forward_ios, size: 14),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _actionCard({
-    required String title,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap, // now uses the passed callback
-      child: Container(
-        height: 100,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Center(
-          child: Text(
-            title,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
         ),
       ),
     );

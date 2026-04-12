@@ -1,29 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'user_feedback_page.dart';
 
 class UserPaymentPage extends StatelessWidget {
-  const UserPaymentPage({super.key});
+  final String? rideId;
 
-  void showSuccessDialog(BuildContext context) {
+  const UserPaymentPage({super.key, this.rideId});
+
+  void showSuccessDialog(
+      BuildContext context, String driverId, String rideId) {
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        return Dialog(
-          child: Container(
-            padding: const EdgeInsets.all(20),
+        return const Dialog(
+          child: SizedBox(
             height: 200,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.check_circle, color: Colors.green, size: 60),
-                SizedBox(height: 20),
-                Text(
-                  "Payment Successful 🎉",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.check_circle,
+                      color: Colors.green, size: 60),
+                  SizedBox(height: 20),
+                  Text(
+                    "Payment Successful 🎉",
+                    style: TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -31,60 +38,115 @@ class UserPaymentPage extends StatelessWidget {
     );
 
     Future.delayed(const Duration(seconds: 2), () {
-      Navigator.pop(context);
+      Navigator.pop(context); // close dialog
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => UserFeedbackPage(
+            rideId: rideId, // ✅ always valid now
+            driverId: driverId,
+          ),
+        ),
+      );
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    String userId = FirebaseAuth.instance.currentUser!.uid;
+    // 🚨 Safety check
+    if (rideId == null) {
+      return const Scaffold(
+        body: Center(child: Text("No ride selected")),
+      );
+    }
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Your Payments")),
-      body: StreamBuilder(
-        stream: FirebaseFirestore.instance
+      appBar: AppBar(title: const Text("Payment")),
+
+      body: FutureBuilder(
+        future: FirebaseFirestore.instance
             .collection('rides')
-            .where('userId', isEqualTo: userId)
-            .where('paymentStatus', isEqualTo: 'unpaid')
-            .snapshots(),
+            .doc(rideId)
+            .get(),
         builder: (context, snapshot) {
+
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          var rides = snapshot.data!.docs;
+          var ride = snapshot.data!;
 
-          if (rides.isEmpty) {
-            return const Center(child: Text("No pending payments"));
-          }
+          return Center(
+            child: Card(
+              margin: const EdgeInsets.all(20),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              elevation: 5,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
 
-          return ListView.builder(
-            itemCount: rides.length,
-            itemBuilder: (context, index) {
-              var ride = rides[index];
+                    const Text(
+                      "Complete Your Payment",
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
 
-              return Card(
-                margin: const EdgeInsets.all(10),
-                child: ListTile(
-                  title: Text("Fare: ₹${ride['fare']}"),
-                  subtitle: Text("Status: ${ride['status']}"),
-                  trailing: ElevatedButton(
-                    child: const Text("Pay Cash"),
-                    onPressed: () async {
-                      await FirebaseFirestore.instance
-                          .collection('rides')
-                          .doc(ride.id)
-                          .update({
-                        "paymentStatus": "paid",
-                        "paymentMethod": "cash",
-                      });
-if (!context.mounted)return;
-                      showSuccessDialog(context);
-                    },
-                  ),
+                    const SizedBox(height: 15),
+
+                    Text(
+                      "Fare: ₹${ride['fare']}",
+                      style: const TextStyle(
+                          fontSize: 22, fontWeight: FontWeight.bold),
+                    ),
+
+                    const SizedBox(height: 25),
+
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 40, vertical: 14),
+                      ),
+                      child: const Text("Pay Cash"),
+                      onPressed: () async {
+
+                        await FirebaseFirestore.instance
+                            .collection('rides')
+                            .doc(rideId)
+                            .update({
+                          "paymentStatus": "paid",
+                          "paymentMethod": "cash",
+                        });
+
+                        var paymentQuery = await FirebaseFirestore.instance
+                            .collection('payments')
+                            .where('rideId', isEqualTo: rideId)
+                            .get();
+
+                        for (var doc in paymentQuery.docs) {
+                          await doc.reference.update({
+                            "method": "cash",
+                            "status": "completed",
+                          });
+                        }
+
+                        if (!context.mounted) return;
+
+                        showSuccessDialog(
+                          context,
+                          ride['driverId'],
+                          rideId!, // ✅ safe now
+                        );
+                      },
+                    ),
+                  ],
                 ),
-              );
-            },
+              ),
+            ),
           );
         },
       ),

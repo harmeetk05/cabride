@@ -7,21 +7,17 @@ class PaymentLogsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Payment Logs"),
-      ),
+      appBar: AppBar(title: const Text("Payment Logs")),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('rides')
-            .orderBy('createdAt', descending: true) // latest first
+            .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-          // 🔄 Loading state
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // ❌ No data
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return const Center(child: Text("No payment records found"));
           }
@@ -29,26 +25,25 @@ class PaymentLogsPage extends StatelessWidget {
           var rides = snapshot.data!.docs;
 
           return ListView.builder(
+            padding: const EdgeInsets.all(12),
             itemCount: rides.length,
             itemBuilder: (context, index) {
               var ride = rides[index];
+              final data = ride.data() as Map<String, dynamic>;
 
-              // 🛡 Safe extraction (no crash even if field missing)
-              String userId = ride['userId'] ?? 'Unknown';
-              String driverId = ride['driverId'] ?? 'Unknown';
-              String fare = ride['fare'] != null
-                  ? "₹${ride['fare']}"
-                  : "₹0";
-              String paymentStatus = ride['paymentStatus'] ?? 'unpaid';
-              String paymentMethod = ride['paymentMethod'] ?? 'N/A';
-              String rideStatus = ride['status'] ?? 'unknown';
+              String userId = data['userId'] ?? 'Unknown';
+              String driverId = data['driverId'] ?? 'Unknown';
+              num fare = data['fare'] ?? 0;
+
+              String paymentStatus = data['paymentStatus'] ?? 'unpaid';
+              String paymentMethod = data['paymentMethod'] ?? 'N/A';
+              String rideStatus = data['status'] ?? 'unknown';
 
               return Card(
-                margin:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                margin: const EdgeInsets.only(bottom: 12),
                 elevation: 3,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: ListTile(
                   leading: CircleAvatar(
@@ -58,16 +53,14 @@ class PaymentLogsPage extends StatelessWidget {
                     child: const Icon(Icons.payment, color: Colors.white),
                   ),
 
-                  // 🧾 MAIN INFO
                   title: Text(
-                    fare,
+                    "₹$fare",
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
                   ),
 
-                  // 📄 DETAILS
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -78,10 +71,9 @@ class PaymentLogsPage extends StatelessWidget {
                     ],
                   ),
 
-                  // ✅ STATUS BADGE
                   trailing: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: paymentStatus == "paid"
                           ? Colors.green

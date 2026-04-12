@@ -9,7 +9,7 @@ class AdminRidesDashboard extends StatelessWidget {
     switch (status) {
       case "searching":
         return Colors.orange;
-      case "accepted":
+      case "assigned":
         return Colors.blue;
       case "ongoing":
         return Colors.green;
@@ -29,14 +29,12 @@ class AdminRidesDashboard extends StatelessWidget {
         title: const Text("All Rides"),
         backgroundColor: Colors.black,
       ),
-
       body: StreamBuilder(
         stream: FirebaseFirestore.instance
             .collection('rides')
             .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -48,20 +46,20 @@ class AdminRidesDashboard extends StatelessWidget {
           }
 
           return ListView.builder(
+            padding: const EdgeInsets.all(10),
             itemCount: rides.length,
             itemBuilder: (context, index) {
-
               var ride = rides[index];
+              final data = ride.data() as Map<String, dynamic>;
 
-              String status = ride['status'] ?? "unknown";
+              String status = data['status'] ?? 'unknown';
 
               return Card(
-                margin: const EdgeInsets.all(10),
+                margin: const EdgeInsets.only(bottom: 10),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: ListTile(
-
                   leading: CircleAvatar(
                     backgroundColor: getStatusColor(status),
                     child: const Icon(Icons.directions_car, color: Colors.white),
@@ -72,17 +70,17 @@ class AdminRidesDashboard extends StatelessWidget {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("User: ${ride['userId']}"),
-                      Text("Driver: ${ride['driverId'] ?? "Not Assigned"}"),
-                      Text("Fare: ₹${ride['fare'] ?? 0}"),
+                      Text("User: ${data['userId'] ?? 'N/A'}"),
+                      Text("Driver: ${data['driverId'] ?? 'Not Assigned'}"),
+                      Text("Fare: ₹${data['fare'] ?? 0}"),
                       Text("Status: $status"),
                     ],
                   ),
 
                   trailing: PopupMenuButton(
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(value: "view", child: Text("View Details")),
-                      const PopupMenuItem(value: "cancel", child: Text("Cancel Ride")),
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(value: "view", child: Text("View Details")),
+                      PopupMenuItem(value: "cancel", child: Text("Cancel Ride")),
                     ],
                     onSelected: (value) {
                       if (value == "view") {
