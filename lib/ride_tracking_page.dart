@@ -11,9 +11,7 @@ class RideTrackingPage extends StatelessWidget {
   void openEmergency(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const EmergencyPage(),
-      ),
+      MaterialPageRoute(builder: (_) => const EmergencyPage()),
     );
   }
 
@@ -33,7 +31,6 @@ class RideTrackingPage extends StatelessWidget {
               .doc(rideId)
               .snapshots(),
           builder: (context, snapshot) {
-
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
@@ -55,7 +52,6 @@ class RideTrackingPage extends StatelessWidget {
                   .doc(ride['driverId'])
                   .get(),
               builder: (context, driverSnap) {
-
                 if (!driverSnap.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
@@ -69,7 +65,6 @@ class RideTrackingPage extends StatelessWidget {
                     padding: const EdgeInsets.all(20),
                     child: Column(
                       children: [
-
                         // 🚗 DRIVER CARD
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -77,12 +72,11 @@ class RideTrackingPage extends StatelessWidget {
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: const [
-                              BoxShadow(color: Colors.black12, blurRadius: 8)
+                              BoxShadow(color: Colors.black12, blurRadius: 8),
                             ],
                           ),
                           child: Row(
                             children: [
-
                               CircleAvatar(
                                 radius: 30,
                                 backgroundColor: Colors.grey[300],
@@ -103,17 +97,22 @@ class RideTrackingPage extends StatelessWidget {
                                     Text(
                                       data['name'] ?? "Driver",
                                       style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 18),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                      ),
                                     ),
                                     const SizedBox(height: 5),
                                     Text(
                                       "${vehicle['model'] ?? ''} • ${vehicle['color'] ?? ''}",
-                                      style: const TextStyle(color: Colors.grey),
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                      ),
                                     ),
                                     Text(
                                       "No: ${vehicle['number'] ?? ''}",
-                                      style: const TextStyle(color: Colors.grey),
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -123,10 +122,11 @@ class RideTrackingPage extends StatelessWidget {
                                 children: [
                                   const Icon(Icons.star, color: Colors.orange),
                                   Text(
-                                    data['rating']?['rating']?.toString() ?? "4.5",
+                                    data['rating']?['rating']?.toString() ??
+                                        "4.5",
                                   ),
                                 ],
-                              )
+                              ),
                             ],
                           ),
                         ),
@@ -142,16 +142,19 @@ class RideTrackingPage extends StatelessWidget {
                           ),
                           child: const Column(
                             children: [
-                              Text("Your OTP",
-                                  style: TextStyle(color: Colors.white70)),
+                              Text(
+                                "Your OTP",
+                                style: TextStyle(color: Colors.white70),
+                              ),
                               SizedBox(height: 10),
                               Text(
                                 "1234",
                                 style: TextStyle(
-                                    fontSize: 28,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 3),
+                                  fontSize: 28,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 3,
+                                ),
                               ),
                             ],
                           ),
@@ -173,7 +176,8 @@ class RideTrackingPage extends StatelessWidget {
                             Expanded(
                               child: ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red),
+                                  backgroundColor: Colors.red,
+                                ),
                                 onPressed: () => openEmergency(context),
                                 icon: const Icon(Icons.warning),
                                 label: const Text("Emergency"),
@@ -194,33 +198,29 @@ class RideTrackingPage extends StatelessWidget {
                             ),
                             child: const Text("Complete Ride"),
                             onPressed: () async {
-
                               String driverId = ride['driverId'];
+                              String currentRideId =
+                                  rideId; // Using the rideId variable from the widget
 
+                              // 1. Update Firestore status
                               await FirebaseFirestore.instance
                                   .collection('rides')
-                                  .doc(rideId)
+                                  .doc(currentRideId)
                                   .update({
-                                "status": "completed",
-                                "paymentStatus": "unpaid",
-                              });
+                                    "status": "completed",
+                                    "paymentStatus": "unpaid",
+                                  });
 
-                              await FirebaseFirestore.instance
-                                  .collection('drivers')
-                                  .doc(driverId)
-                                  .update({
-                                "available": true,
-                              });
-
-                              if (!context.mounted) return;
-
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      UserPaymentPage(rideId: rideId),
-                                ),
-                              );
+                              // 2. Navigate to your Payment Page
+                              if (context.mounted) {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        UserPaymentPage(rideId: currentRideId),
+                                  ),
+                                );
+                              }
                             },
                           ),
                         ),

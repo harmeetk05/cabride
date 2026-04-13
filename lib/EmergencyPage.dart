@@ -97,46 +97,99 @@ class _EmergencyPageState extends State<EmergencyPage> {
 
   // USER UI - Updated to Grid Layout
   Widget userEmergencyUI() {
-    return GridView.count(
-      crossAxisCount: 2, // 2 columns
-      crossAxisSpacing: 15,
-      mainAxisSpacing: 15,
-      children: [
-        emergencyButton("Safety", Icons.warning, Colors.red),
-        emergencyButton("Medical", Icons.medical_services, Colors.blue),
-        emergencyButton("Vehicle", Icons.car_crash, Colors.orange),
-        emergencyButton("Other", Icons.report_problem, Colors.green),
-      ],
-    );
-  }
+  return Center( // ✅ Keeps the grid from stretching too wide on Web
+    child: Container(
+      constraints: const BoxConstraints(maxWidth: 600), // ✅ Limits width for a "Mobile" feel on Web
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min, // ✅ Only takes up necessary space
+        children: [
+          const Text(
+            "Quick Assistance",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF2D3250)),
+          ),
+          const Text(
+            "Tap to notify help immediately",
+            style: TextStyle(fontSize: 13, color: Colors.grey),
+          ),
+          const SizedBox(height: 20),
+          
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 2.2, // ✅ CHANGED: This makes the tiles short rectangles!
+            children: [
+              emergencyButton("Safety", Icons.shield_rounded, Colors.redAccent),
+              emergencyButton("Medical", Icons.local_hospital_rounded, Colors.blueAccent),
+              emergencyButton("Vehicle", Icons.minor_crash_rounded, Colors.orangeAccent),
+              emergencyButton("General", Icons.help_center_rounded, Colors.teal),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
-  Widget emergencyButton(String label, IconData icon, Color color) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+Widget emergencyButton(String label, IconData icon, Color color) {
+  return Container(
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(18), // Slightly less round for rectangles
+      boxShadow: [
+        BoxShadow(
+          color: color.withOpacity(0.1),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      color: Colors.white,
       child: InkWell(
         onTap: () => sendAlert(label),
-        borderRadius: BorderRadius.circular(15),
-        child: Column(
+        borderRadius: BorderRadius.circular(18),
+        child: Row( // ✅ CHANGED: Using Row instead of Column for a side-by-side look
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 45, color: color),
-            const SizedBox(height: 10),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 24, color: color), // Smaller icon
             ),
-            const SizedBox(height: 10),
-            const Text(
-              "Send Alert",
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+            const SizedBox(width: 12),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 15, 
+                    fontWeight: FontWeight.bold, 
+                    color: Color(0xFF2D3250),
+                  ),
+                ),
+                const Text(
+                  "Alert Now",
+                  style: TextStyle(fontSize: 10, color: Colors.grey),
+                ),
+              ],
             ),
           ],
         ),
       ),
-    );
-  }
-
+    ),
+  );
+}
   // DRIVER UI - Properly Centered
   Widget driverEmergencyUI() {
     return Center(
