@@ -65,7 +65,7 @@ class _ManageVehiclesPageState extends State<ManageVehiclesPage> {
             return const Center(child: Text("No vehicles found"));
           }
 
-          // Filter logic for search
+          // Filter logic for search (Fixed missing || operator)
           var vehicles = snapshot.data!.docs.where((doc) {
             var data = doc.data() as Map<String, dynamic>;
             String model = (data['model'] ?? "").toString().toLowerCase();
@@ -77,6 +77,7 @@ class _ManageVehiclesPageState extends State<ManageVehiclesPage> {
             itemCount: vehicles.length,
             itemBuilder: (context, index) {
               var vehicle = vehicles[index].data() as Map<String, dynamic>;
+              String? driverId = vehicle['driverId'];
 
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
@@ -87,6 +88,7 @@ class _ManageVehiclesPageState extends State<ManageVehiclesPage> {
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
@@ -94,8 +96,7 @@ class _ManageVehiclesPageState extends State<ManageVehiclesPage> {
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: Colors.indigoAccent.withOpacity(0.1),
-                              shape: BoxShape.circle,
-                            ),
+                              shape: BoxShape.circle,),
                             child: const Icon(
                               Icons.directions_car,
                               color: Colors.indigoAccent,
@@ -143,7 +144,7 @@ class _ManageVehiclesPageState extends State<ManageVehiclesPage> {
                           ),
                         ],
                       ),
-                      const Divider(height: 30),
+                      const SizedBox(height: 20),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -164,6 +165,20 @@ class _ManageVehiclesPageState extends State<ManageVehiclesPage> {
                           ),
                         ],
                       ),
+                      
+                      const Divider(height: 30),
+                      
+                      // --- NEW DRIVER ASSIGNMENT SECTION ---
+                      const Text(
+                        "Assigned Driver",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildDriverInfo(driverId),
                     ],
                   ),
                 ),
@@ -175,7 +190,8 @@ class _ManageVehiclesPageState extends State<ManageVehiclesPage> {
     );
   }
 
-  Widget _vehicleStat(IconData icon, String label, String? value) {
+  // Helper widget to display individual vehicle statsWidget 
+  _vehicleStat(IconData icon, String label, String? value) {
     return Column(
       children: [
         Icon(icon, size: 20, color: Colors.grey),
@@ -186,6 +202,90 @@ class _ManageVehiclesPageState extends State<ManageVehiclesPage> {
           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
         ),
       ],
+    );
+  }
+
+  // --- HELPER WIDGET TO FETCH AND DISPLAY DRIVER INFO ---
+  Widget _buildDriverInfo(String? driverId) {
+    if (driverId == null || driverId.isEmpty) {
+      return Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: Colors.orange[400], size: 20),
+          const SizedBox(width: 8),
+          const Text(
+            "No driver assigned to this vehicle",
+            style: TextStyle(color: Colors.orange, fontWeight: FontWeight.w600),
+          ),
+        ],
+      );
+    }
+
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance.collection('drivers').doc(driverId).get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: LinearProgressIndicator(minHeight: 2));
+        }
+
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return const Text(
+            "Driver data not found",
+            style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+          );
+        }
+
+        var driverData = snapshot.data!.data() as Map<String, dynamic>;
+        String imageUrl = driverData['imageUrl'] ?? "";
+        
+        return Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: Colors.grey.withOpacity(0.2)),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: Colors.indigo[50],
+                backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+                child: imageUrl.isEmpty 
+                    ? const Icon(Icons.person, color: Colors.indigoAccent) 
+                    : null,
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      driverData['name'] ?? "Unknown Driver",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: Color(0xFF2D3250),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      "Phone: ${driverData['phone'] ?? 'N/A'}",
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.verified_user, color: Colors.green, size: 18),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

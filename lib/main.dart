@@ -491,7 +491,7 @@ class _UserHomeState extends State<UserHome> {
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => const LoginPage()),
+        MaterialPageRoute(builder: (context) => const LoginPage()), // Make sure LoginPage is imported
         (route) => false,
       );
     }
@@ -509,8 +509,9 @@ class _UserHomeState extends State<UserHome> {
               .doc(uid)
               .snapshots(),
           builder: (context, snapshot) {
-            if (!snapshot.hasData)
+            if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
+            }
             var userData = snapshot.data!.data() as Map<String, dynamic>;
 
             return Column(
@@ -535,7 +536,10 @@ class _UserHomeState extends State<UserHome> {
                   context,
                   "My Profile",
                   Icons.account_circle_outlined,
-                  onTap: () => _showEditProfileDialog(context, userData),
+                  onTap: () {
+                    Navigator.pop(context); // Close drawer
+                    _showEditProfileDialog(context, userData);
+                  },
                 ),
                 _drawerTile(context, "My Rides", Icons.history),
                 _drawerTile(
@@ -543,7 +547,7 @@ class _UserHomeState extends State<UserHome> {
                   "Payments",
                   Icons.payment_outlined,
                   onTap: () {
-                    Navigator.pop(context); // Close the drawer first
+                    Navigator.pop(context); 
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -553,13 +557,26 @@ class _UserHomeState extends State<UserHome> {
                   },
                 ),
                 const Divider(),
-                _drawerTile(context, "Help & Support", Icons.help_outline),
+                // ✅ UPDATED HELP & SUPPORT BUTTON
+                _drawerTile(
+                  context, 
+                  "Help & Support", 
+                  Icons.help_outline,
+                  onTap: () {
+                    Navigator.pop(context); 
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const HelpSupportPage(),
+                      ),
+                    );
+                  },
+                ),
                 _drawerTile(
                   context,
                   "Logout",
                   Icons.logout,
-                  color: Colors.redAccent,
-                  onTap: logout,
+                  color: Colors.redAccent,onTap: logout,
                 ),
               ],
             );
@@ -663,8 +680,7 @@ class _UserHomeState extends State<UserHome> {
                           );
                         },
                         child: const Text(
-                          "See Prices",
-                          style: TextStyle(
+                          "See Prices",style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -678,7 +694,7 @@ class _UserHomeState extends State<UserHome> {
 
               const SizedBox(height: 40),
               const Text(
-                "Quick Actions",
+                "Safety & Assistance",
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -687,36 +703,45 @@ class _UserHomeState extends State<UserHome> {
               ),
               const SizedBox(height: 15),
 
-              Row(
-                children: [
-                  _quickActionCard(
+              // ✅ NEW FULL-WIDTH EMERGENCY BUTTON
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
                     context,
-                    "Emergency",
-                    Colors.red,
-                    Icons.emergency_share,
-                    () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => EmergencyPage()),
-                      );
-                    },
+                    MaterialPageRoute(builder: (_) => EmergencyPage(role: 'user')), // Make sure EmergencyPage is imported
+                  );
+                },
+                child: Container(
+                  width: double.infinity,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.red.withOpacity(0.3), width: 2),
                   ),
-                  const SizedBox(width: 15),
-                  _quickActionCard(
-                    context,
-                    "Payments",
-                    Colors.blue,
-                    Icons.account_balance_wallet,
-                    () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const UserPaymentPage(),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.2),
+                          shape: BoxShape.circle,
                         ),
-                      );
-                    },
+                        child: const Icon(Icons.emergency_share, color: Colors.red, size: 30),
+                      ),
+                      const SizedBox(width: 15),
+                      const Text(
+                        "Emergency SOS",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
               const SizedBox(height: 40),
             ],
@@ -758,8 +783,7 @@ class _UserHomeState extends State<UserHome> {
               _editField(nameCtrl, "Full Name", Icons.person_outline),
               _editField(phoneCtrl, "Phone Number", Icons.phone_android),
               const Divider(height: 30),
-              const Align(
-                alignment: Alignment.centerLeft,
+              const Align(alignment: Alignment.centerLeft,
                 child: Text(
                   "Emergency Details",
                   style: TextStyle(
@@ -847,39 +871,6 @@ class _UserHomeState extends State<UserHome> {
     );
   }
 
-  Widget _quickActionCard(
-    BuildContext context,
-    String title,
-    Color color,
-    IconData icon,
-    VoidCallback onTap,
-  ) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: 110,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: color.withOpacity(0.2)),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: color, size: 30),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                style: TextStyle(fontWeight: FontWeight.bold, color: color),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _drawerTile(
     BuildContext context,
     String title,
@@ -912,6 +903,123 @@ class _UserHomeState extends State<UserHome> {
   }
 }
 
+// ==========================================
+// ✅ NEW HELP & SUPPORT PAGE
+// ==========================================
+class HelpSupportPage extends StatelessWidget {
+  const HelpSupportPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(backgroundColor: const Color(0xFFF8F9FD),
+      appBar: AppBar(
+        title: const Text(
+          "Help & Support",
+          style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2D3250)),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Color(0xFF2D3250)),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          // Contact Section
+          const Text(
+            "Contact Us",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3250)),
+          ),
+          const SizedBox(height: 15),
+          _contactCard(Icons.phone, "Call Support", "+91 99999 99999", Colors.green),
+          const SizedBox(height: 10),
+          _contactCard(Icons.email, "Email Support", "support@cabride.com", Colors.blue),
+          
+          const SizedBox(height: 35),
+          
+          // FAQ Section
+          const Text(
+            "Frequently Asked Questions",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3250)),
+          ),
+          const SizedBox(height: 15),
+          _buildFAQItem(
+            "How do I book a ride?",
+            "Enter your pickup and drop-off locations on the home screen, select your preferred vehicle type, and tap 'Confirm Ride'.",
+          ),
+          _buildFAQItem(
+            "How do I pay for my ride?",
+            "You can pay securely online via UPI/Card using our Razorpay integration, or select 'Cash on Arrival' when completing your trip.",
+          ),
+          _buildFAQItem(
+            "How does the Emergency SOS work?",
+            "Tapping the red Emergency SOS button will immediately log an alert in our administrative system and can be configured to notify your emergency contacts.",
+          ),
+          _buildFAQItem(
+            "Can I update my profile details?",
+            "Yes! Open the side menu, tap 'My Profile', and you can update your phone number and emergency contact information.",
+          ),
+          
+          const SizedBox(height: 40),
+          
+          // App Version
+          const Center(
+            child: Text(
+              "CabRide Version 1.0.0\nDesigned for Care & Safety",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _contactCard(IconData icon, String title, String subtitle, Color color) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: color.withOpacity(0.1),
+          child: Icon(icon, color: color),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(subtitle),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+        onTap: () {
+          // Future feature: launchUrl for phone/email
+        },
+      ),
+    );
+  }
+
+  Widget _buildFAQItem(String question, String answer) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+      ),
+      child: ExpansionTile(
+        title: Text(question, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        iconColor: const Color(0xFF2D3250),
+        collapsedIconColor: Colors.grey,
+        childrenPadding: const EdgeInsets.only(left: 15, right: 15, bottom: 15),
+        children: [
+          Text(
+            answer,
+            style: const TextStyle(color: Colors.grey, height: 1.5),
+          ),
+        ],
+      ),
+    );
+  }
+}
 class DriverHome extends StatefulWidget {
   const DriverHome({super.key});
 
@@ -971,7 +1079,7 @@ class _DriverHomeState extends State<DriverHome> {
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DriverPaymentsPage()))),
                 const Divider(),
                 _drawerTile(context, "Emergency Help", Icons.emergency_share, color: Colors.red,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EmergencyPage()))),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EmergencyPage(role: 'driver')))),
                 _drawerTile(context, "Logout", Icons.logout, color: Colors.redAccent, onTap: () => logout(context)),
               ],
             );
@@ -1069,7 +1177,7 @@ class _DriverHomeState extends State<DriverHome> {
                 subtitle: "Panic button for immediate help",
                 icon: Icons.warning_amber_rounded,
                 color: Colors.red,
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EmergencyPage())),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EmergencyPage(role:'driver'))),
               ),
               const SizedBox(height: 40),
             ],
@@ -1395,7 +1503,7 @@ class AdminHome extends StatelessWidget {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const EmergencyPage()),
+                    MaterialPageRoute(builder: (_) => const EmergencyPage(role: 'admin')),
                   );
                 },
                 child: Container(
