@@ -13,7 +13,6 @@ import 'package:cabride/payment_logs_page.dart';
 import 'package:cabride/manage_users_page.dart';
 import 'package:cabride/manage_drivers_page.dart';
 import 'package:cabride/view_reports_page.dart';
-import 'user_payment_page.dart';
 import 'ride_vehicle_page.dart';
 import 'driver_requests_page.dart';
 import 'driver_payment_page.dart';
@@ -22,6 +21,12 @@ import 'admin_rides_dashboard.dart';
 import 'admin_payment_page.dart';
 import 'manage_vehicles_page.dart';
 import 'user_payments_history_page.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'map_picker_page.dart';
+import 'user_ride_history_page.dart';
+import 'driver_ride_history_page.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -473,6 +478,7 @@ class _ForgotPasswordState extends State<ForgotPassword> {
   }
 }
 
+
 class UserHome extends StatefulWidget {
   const UserHome({super.key});
 
@@ -484,6 +490,38 @@ class _UserHomeState extends State<UserHome> {
   final pickupController = TextEditingController();
   final dropController = TextEditingController();
   final String uid = FirebaseAuth.instance.currentUser?.uid ?? "";
+
+  final String googleApiKey = "AIzaSyCWRAEgi2aagUTfRrsSFGHX_6KlF3VcCXI";
+
+  // Coordinates storage
+  Map<String, double>? pickupCoords;
+  Map<String, double>? dropCoords;
+
+  Future<void> _selectLocation(bool isPickup) async {
+    // 1. Open Map
+    LatLng? picked = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => MapPickerPage(apiKey: googleApiKey)),
+    );
+
+    if (picked != null) {
+      // 2. Reverse Geocode to get address text
+      final url = "https://maps.googleapis.com/maps/api/geocode/json?latlng=${picked.latitude},${picked.longitude}&key=$googleApiKey";
+      final response = await http.get(Uri.parse(url));
+      final data = json.decode(response.body);
+      String address = data['status'] == 'OK' ? data['results'][0]['formatted_address'] : "Selected Point";
+
+      setState(() {
+        if (isPickup) {
+          pickupController.text = address;
+          pickupCoords = {"lat": picked.latitude, "lng": picked.longitude};
+        } else {
+          dropController.text = address;
+          dropCoords = {"lat": picked.latitude, "lng": picked.longitude};
+        }
+      });
+    }
+  }
 
   // ✅ Logout Function
   Future<void> logout() async {
@@ -526,12 +564,15 @@ class _UserHomeState extends State<UserHome> {
                       color: Colors.white,
                     ),
                   ),
+
                   accountName: Text(
                     userData['name'] ?? "User",
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
+
                   accountEmail: Text(userData['email'] ?? ""),
                 ),
+
                 _drawerTile(
                   context,
                   "My Profile",
@@ -541,13 +582,25 @@ class _UserHomeState extends State<UserHome> {
                     _showEditProfileDialog(context, userData);
                   },
                 ),
-                _drawerTile(context, "My Rides", Icons.history),
+
+                _drawerTile(
+  context, 
+  "My Rides", 
+  Icons.history,
+  onTap: () {
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const UserRidesHistoryPage()),
+    );
+  },
+),
                 _drawerTile(
                   context,
                   "Payments",
                   Icons.payment_outlined,
                   onTap: () {
-                    Navigator.pop(context); 
+                    Navigator.pop(context);
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -559,11 +612,11 @@ class _UserHomeState extends State<UserHome> {
                 const Divider(),
                 // ✅ UPDATED HELP & SUPPORT BUTTON
                 _drawerTile(
-                  context, 
-                  "Help & Support", 
+                  context,
+                  "Help & Support",
                   Icons.help_outline,
                   onTap: () {
-                    Navigator.pop(context); 
+                    Navigator.pop(context);
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -572,6 +625,7 @@ class _UserHomeState extends State<UserHome> {
                     );
                   },
                 ),
+
                 _drawerTile(
                   context,
                   "Logout",
@@ -633,22 +687,12 @@ class _UserHomeState extends State<UserHome> {
                 ),
                 child: Column(
                   children: [
-                    _locationField(
-                      pickupController,
-                      "Pickup location",
-                      Icons.radio_button_checked,
-                      Colors.green,
-                    ),
+                    _locationField(pickupController, "Pickup location", Icons.radio_button_checked, Colors.green, true),
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 15),
                       child: Divider(),
                     ),
-                    _locationField(
-                      dropController,
-                      "Drop location",
-                      Icons.location_on,
-                      Colors.redAccent,
-                    ),
+                    _locationField(dropController, "Drop location", Icons.location_on, Colors.redAccent, false),
                     const SizedBox(height: 25),
                     SizedBox(
                       width: double.infinity,
@@ -660,25 +704,31 @@ class _UserHomeState extends State<UserHome> {
                             borderRadius: BorderRadius.circular(15),
                           ),
                         ),
-                        onPressed: () {
-                          String pickup = pickupController.text.trim();
-                          String drop = dropController.text.trim();
-                          if (pickup.isEmpty || drop.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Enter pickup & drop"),
-                              ),
-                            );
-                            return;
-                          }
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  RideVehiclePage(pickup: pickup, drop: drop),
-                            ),
-                          );
-                        },
+                        onPressed: () async {
+  if (pickupController.text.isEmpty || dropController.text.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Select locations first")));
+    return;
+  }
+
+  // Fallback: If they typed instead of picking on map, fetch coords now
+  if (pickupCoords == null) {
+     // You can add a manual geocode call here or enforce map picking
+  }
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => RideVehiclePage(
+        pickup: pickupController.text,
+        drop: dropController.text,
+        pickupLat: pickupCoords?['lat'] ?? 26.8467,
+        pickupLng: pickupCoords?['lng'] ?? 80.9462,
+        dropLat: dropCoords?['lat'] ?? 26.8467,
+        dropLng: dropCoords?['lng'] ?? 80.9462,
+      ),
+    ),
+  );
+},
                         child: const Text(
                           "See Prices",style: TextStyle(
                             color: Colors.white,
@@ -846,13 +896,7 @@ class _UserHomeState extends State<UserHome> {
   }
 
   // --- HELPERS ---
-
-  Widget _locationField(
-    TextEditingController ctrl,
-    String hint,
-    IconData icon,
-    Color color,
-  ) {
+  Widget _locationField(TextEditingController ctrl, String hint, IconData icon, Color color, bool isPickup) {
     return Row(
       children: [
         Icon(icon, size: 20, color: color),
@@ -860,13 +904,13 @@ class _UserHomeState extends State<UserHome> {
         Expanded(
           child: TextField(
             controller: ctrl,
-            decoration: InputDecoration(
-              hintText: hint,
-              border: InputBorder.none,
-              hintStyle: const TextStyle(color: Colors.grey),
-            ),
+            decoration: InputDecoration(hintText: hint, border: InputBorder.none),
           ),
         ),
+        IconButton(
+          icon: const Icon(Icons.map_outlined, color: Colors.indigoAccent),
+          onPressed: () => _selectLocation(isPickup),
+        )
       ],
     );
   }
@@ -1074,7 +1118,18 @@ class _DriverHomeState extends State<DriverHome> {
                 ),
                 _drawerTile(context, "My Profile", Icons.person_outline, 
                   onTap: () => _showProfileDialog(context, data!)),
-                _drawerTile(context, "Ride History", Icons.history),
+                _drawerTile(
+  context, 
+  "Ride History", 
+  Icons.history,
+  onTap: () {
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const DriverRidesHistoryPage()),
+    );
+  },
+),
                 _drawerTile(context, "Earnings", Icons.account_balance_wallet_outlined,
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DriverPaymentsPage()))),
                 const Divider(),
