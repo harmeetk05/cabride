@@ -77,7 +77,7 @@ class _UserPaymentPageState extends State<UserPaymentPage> {
     var options = js.JsObject.jsify({
       'key': 'rzp_test_Sd2K9sVbezqLUc',
       'amount': (amount * 100).toInt(),
-      'name': 'CabRide Elderly Service',
+      'name': 'CabRide',
       'description': 'Ride Payment',
       'prefill': {'contact': '9999999999', 'email': 'user@example.com'},
       'handler': js.allowInterop((response) {
